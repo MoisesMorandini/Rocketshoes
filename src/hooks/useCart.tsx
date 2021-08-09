@@ -69,14 +69,16 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
 
   const removeProduct = (productId: number) => {
     try {
-      const storagedCart = localStorage.getItem('@RocketShoes:cart');
-      if (storagedCart) {
-        const productsStoraged: Product[] = JSON.parse(storagedCart);
-        const productIndex = productsStoraged.findIndex(product => product.id === productId);
-        productsStoraged.splice(productIndex, 1);
-        setCart([...productsStoraged]);
-        localStorage.setItem('@RocketShoes:cart', JSON.stringify(productsStoraged));
+      const productIndex = cart.findIndex(product => product.id === productId);
+      if (productIndex < 0) {
+        toast.error('Erro na remoção do produto');
+        return;
       }
+
+      cart.splice(productIndex, 1);
+      setCart([...cart]);
+      localStorage.setItem('@RocketShoes:cart', JSON.stringify(cart));
+
     } catch {
       toast.error('Erro na remoção do produto');
     }
@@ -87,30 +89,29 @@ export function CartProvider({ children }: CartProviderProps): JSX.Element {
     amount,
   }: UpdateProductAmount) => {
     try {
-      const storagedCart = localStorage.getItem('@RocketShoes:cart');
-      if (storagedCart) {
-        const productsStoraged: Product[] = JSON.parse(storagedCart);
-
-        const product = productsStoraged.find(product => product.id === productId) as Product;
-        if (product.amount <= 1 && amount === -1) {
-          return
-        }
-
-        const { data: stock } = await api.get(`stock/${productId}`);
-        if ((product.amount + amount) > stock.amount) {
-          toast.error('Quantidade solicitada fora de estoque');
-          return
-        }
-
-        const products: Product[] = productsStoraged.map(productStorage => {
-          return productStorage.id === productId ? {
-            ...productStorage,
-            amount: productStorage.amount + amount
-          } : { ...productStorage }
-        });
-        setCart([...products]);
-        localStorage.setItem('@RocketShoes:cart', JSON.stringify(products));
+      const product = cart.find(product => product.id === productId) as Product;
+      if (!product) {
+        toast.error('Erro na alteração de quantidade do produto');
       }
+      if (product.amount <= 1 && amount < 1) {
+        return
+      }
+
+      const { data: stock } = await api.get(`stock/${productId}`);
+      if (amount > stock.amount) {
+        toast.error('Quantidade solicitada fora de estoque');
+        return
+      }
+
+      const products: Product[] = cart.map(productStorage => {
+        return productStorage.id === productId ? {
+          ...productStorage,
+          amount: amount
+        } : { ...productStorage }
+      });
+      setCart([...products]);
+      localStorage.setItem('@RocketShoes:cart', JSON.stringify(products));
+
     } catch {
       toast.error('Erro na alteração de quantidade do produto');
     }
